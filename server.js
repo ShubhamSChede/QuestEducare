@@ -13,6 +13,18 @@ const videoRoutes = require('./routes/videoRoutes');
 
 const app = express();
 
+// CORS Configuration - Add this before other middleware
+app.use(cors({
+  origin: ['http://localhost:8081', 'http://localhost:19006', 'exp://192.168.1.4:8081'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 // Create single admin function
 const createSingleAdmin = async () => {
   try {
@@ -36,11 +48,6 @@ const createSingleAdmin = async () => {
 connectDB().then(() => {
   createSingleAdmin();
 });
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/api/auth', authRoutes);
