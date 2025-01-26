@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Video = require('../models/Video');
 const Access = require('../models/Access');
 const cloudinary = require('../config/cloudinary');
+const AccessRequest = require('../models/AccessRequest');
 
 exports.uploadVideo = async (req, res) => {
   try {
@@ -20,7 +21,7 @@ exports.uploadVideo = async (req, res) => {
       subject: req.body.subject,
       subcategory: req.body.subcategory,
       chapter: req.body.chapter,
-      isJEE: req.body.isJEE === 'true',
+      category: Array.isArray(req.body.category) ? req.body.category : [req.body.category], // Handle both array and single value
       uploadedBy: req.user._id
     });
 
@@ -32,12 +33,54 @@ exports.uploadVideo = async (req, res) => {
 
 exports.grantAccess = async (req, res) => {
   try {
-    const { studentId, videoId } = req.body;
+    const { studentId, subject, categories } = req.body;
+
+    // Check if access already exists
+    const existingAccess = await Access.findOne({
+      student: studentId,
+      subject: subject,
+      isRevoked: false
+    });
+
+    if (existingAccess) {
+      // Update existing access with new categories
+      const newCategories = Array.isArray(categories) ? categories : [categories];
+      existingAccess.categories = [...new Set([...existingAccess.categories, ...newCategories])];
+      await existingAccess.save();
+      
+      // Update related request if exists
+      await AccessRequest.findOneAndUpdate(
+        { student: studentId, subject, status: 'pending' },
+        { 
+          status: 'approved',
+          processedBy: req.user._id,
+          processedAt: Date.now()
+        }
+      );
+
+      return res.json(existingAccess);
+    }
+
+
+    // Create new access if it doesn't exist
     const access = await Access.create({
       student: studentId,
-      video: videoId,
+      subject,
+      categories: Array.isArray(categories) ? categories : [categories],
       grantedBy: req.user._id
     });
+
+     // Update any existing request to approved
+     await AccessRequest.findOneAndUpdate(
+      { student: studentId, subject, status: 'pending' },
+      { 
+        status: 'approved',
+        processedBy: req.user._id,
+        processedAt: Date.now()
+      }
+    );
+    
+
     res.status(201).json(access);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -46,11 +89,31 @@ exports.grantAccess = async (req, res) => {
 
 exports.revokeAccess = async (req, res) => {
   try {
-    const access = await Access.findOneAndUpdate(
-      { student: req.body.studentId, video: req.body.videoId },
-      { isRevoked: true, revokedAt: Date.now() },
-      { new: true }
-    );
+    const { studentId, subject, categories } = req.body;
+    
+    const access = await Access.findOne({
+      student: studentId,
+      subject: subject,
+      isRevoked: false
+    });
+
+    if (!access) {
+      return res.status(404).json({ error: 'Access not found' });
+    }
+
+    // Handle both array and single category input
+    const categoriesToRevoke = Array.isArray(categories) ? categories : [categories];
+
+    if (categoriesToRevoke.length === access.categories.length) {
+      // Revoke entire subject access
+      access.isRevoked = true;
+      access.revokedAt = Date.now();
+    } else {
+      // Remove specific categories
+      access.categories = access.categories.filter(cat => !categoriesToRevoke.includes(cat));
+    }
+
+    await access.save();
     res.json(access);
   } catch (error) {
     res.status(400).json({ error: error.message });
