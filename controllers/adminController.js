@@ -132,3 +132,97 @@ exports.lockStudent = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
+
+// controllers/adminController.js
+
+// Get all students
+exports.getAllStudents = async (req, res) => {
+  try {
+    const students = await User.find({ role: 'student' })
+      .select('-password')
+      .sort({ createdAt: -1 });
+
+    res.json(students);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Get all video access requests
+exports.getAllAccessRequests = async (req, res) => {
+  try {
+    const requests = await AccessRequest.find()
+      .populate('student', 'name email class')
+      .sort({ requestedAt: -1 });
+
+    res.json(requests);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Get all videos
+exports.getAllVideos = async (req, res) => {
+  try {
+    const videos = await Video.find()
+      .populate('uploadedBy', 'name email')
+      .sort({ createdAt: -1 });
+
+    res.json(videos);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Get videos by category/subject
+exports.getVideosByFilter = async (req, res) => {
+  try {
+    const { subject, category, class: studentClass } = req.query;
+    const query = {};
+
+    if (subject) query.subject = subject;
+    if (category) query.category = category;
+    if (studentClass) query.class = studentClass;
+
+    const videos = await Video.find(query)
+      .populate('uploadedBy', 'name email')
+      .sort({ createdAt: -1 });
+
+    res.json(videos);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Get student access history
+exports.getStudentAccessHistory = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    // Get student details
+    const student = await User.findById(studentId).select('-password');
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    // Get all access records (active and revoked)
+    const accessHistory = await Access.find({ student: studentId })
+      .populate('grantedBy', 'name email')
+      .sort({ grantedAt: -1 });
+
+    // Get all access requests
+    const accessRequests = await AccessRequest.find({ student: studentId })
+      .populate('processedBy', 'name email')
+      .sort({ requestedAt: -1 });
+
+    res.json({
+      student,
+      accessHistory,
+      accessRequests
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+

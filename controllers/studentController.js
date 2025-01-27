@@ -2,8 +2,9 @@
 const Access = require('../models/Access');
 const Video = require('../models/Video');
 const AccessRequest = require('../models/AccessRequest');
-
-exports.requestAccess = async (req, res) => {
+const User = require('../models/User');
+  
+  exports.requestAccess = async (req, res) => {
   try {
     const { subject, categories } = req.body;
     
@@ -72,6 +73,46 @@ exports.getAccessibleVideos = async (req, res) => {
     });
 
     res.json(videos);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Get student profile and access information
+exports.getProfile = async (req, res) => {
+  try {
+    const student = await User.findById(req.user._id).select('-password');
+    
+    // Get all active accesses
+    const accesses = await Access.find({
+      student: req.user._id,
+      isRevoked: false
+    });
+
+    // Format access information
+    const accessInfo = accesses.map(access => ({
+      subject: access.subject,
+      categories: access.categories,
+      grantedAt: access.grantedAt
+    }));
+
+    res.json({
+      profile: student,
+      accesses: accessInfo
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Get access request status
+exports.getAccessRequests = async (req, res) => {
+  try {
+    const requests = await AccessRequest.find({
+      student: req.user._id
+    }).sort({ requestedAt: -1 }); // Most recent first
+
+    res.json(requests);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
