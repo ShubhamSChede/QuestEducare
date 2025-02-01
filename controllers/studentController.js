@@ -6,11 +6,17 @@ const User = require('../models/User');
   
   exports.requestAccess = async (req, res) => {
   try {
-    const { subject, categories } = req.body;
+    const { subject, categories, class: studentClass } = req.body;
     
+    // Check if all required fields are present
+    if (!subject || !categories || !studentClass) {
+      return res.status(400).json({ error: 'Subject, categories, and class are required' });
+    }
+
     // Check if student already has access
     const existingAccess = await Access.findOne({
       student: req.user._id,
+      class: studentClass,
       subject,
       isRevoked: false
     });
@@ -24,6 +30,7 @@ const User = require('../models/User');
     // Check for pending request
     const pendingRequest = await AccessRequest.findOne({
       student: req.user._id,
+      class: studentClass,
       subject,
       status: 'pending'
     });
@@ -36,6 +43,7 @@ const User = require('../models/User');
 
     const accessRequest = await AccessRequest.create({
       student: req.user._id,
+      class: studentClass,  // Add class
       subject,
       categories: Array.isArray(categories) ? categories : [categories]
     });
@@ -117,3 +125,4 @@ exports.getAccessRequests = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
+

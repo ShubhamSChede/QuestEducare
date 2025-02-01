@@ -7,6 +7,11 @@ const accessRequestSchema = new mongoose.Schema({
     ref: 'User', 
     required: true 
   },
+  class: { 
+    type: String, 
+    enum: ["11", "12"], 
+    required: true     // Added this field
+  },
   subject: { 
     type: String, 
     enum: ["Physics", "Chemistry", "Math", "Biology"], 

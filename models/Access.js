@@ -1,3 +1,4 @@
+
 // models/Access.js
 const mongoose = require('mongoose');
 
@@ -6,6 +7,11 @@ const accessSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User', 
     required: true 
+  },
+  class: { 
+    type: String, 
+    enum: ["11", "12"], 
+    required: true     // Added this field
   },
   subject: { 
     type: String, 
@@ -32,10 +38,6 @@ const accessSchema = new mongoose.Schema({
   },
   revokedAt: { 
     type: Date 
-  },
-  // Optional: track reason for revocation
-  revocationReason: {
-    type: String
   }
 });
 

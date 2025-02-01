@@ -33,11 +33,12 @@ exports.uploadVideo = async (req, res) => {
 
 exports.grantAccess = async (req, res) => {
   try {
-    const { studentId, subject, categories } = req.body;
+    const { studentId, subject, categories, class: studentClass } = req.body;
 
     // Check if access already exists
     const existingAccess = await Access.findOne({
       student: studentId,
+      class: studentClass,
       subject: subject,
       isRevoked: false
     });
@@ -50,7 +51,7 @@ exports.grantAccess = async (req, res) => {
       
       // Update related request if exists
       await AccessRequest.findOneAndUpdate(
-        { student: studentId, subject, status: 'pending' },
+        { student: studentId,class: studentClass , subject, status: 'pending' },
         { 
           status: 'approved',
           processedBy: req.user._id,
@@ -65,6 +66,7 @@ exports.grantAccess = async (req, res) => {
     // Create new access if it doesn't exist
     const access = await Access.create({
       student: studentId,
+      class: studentClass,
       subject,
       categories: Array.isArray(categories) ? categories : [categories],
       grantedBy: req.user._id
@@ -72,7 +74,7 @@ exports.grantAccess = async (req, res) => {
 
      // Update any existing request to approved
      await AccessRequest.findOneAndUpdate(
-      { student: studentId, subject, status: 'pending' },
+      { student: studentId, class: studentClass, subject, status: 'pending' },
       { 
         status: 'approved',
         processedBy: req.user._id,
@@ -89,10 +91,11 @@ exports.grantAccess = async (req, res) => {
 
 exports.revokeAccess = async (req, res) => {
   try {
-    const { studentId, subject, categories } = req.body;
+    const { studentId, class : studentClass , subject, categories } = req.body;
     
     const access = await Access.findOne({
       student: studentId,
+      class: studentClass,
       subject: subject,
       isRevoked: false
     });
@@ -132,9 +135,6 @@ exports.lockStudent = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
-
-// controllers/adminController.js
-
 // Get all students
 exports.getAllStudents = async (req, res) => {
   try {
@@ -174,7 +174,7 @@ exports.getAllVideos = async (req, res) => {
   }
 };
 
-// Get videos by category/subject
+// Get videos by category/subject/class
 exports.getVideosByFilter = async (req, res) => {
   try {
     const { subject, category, class: studentClass } = req.query;
